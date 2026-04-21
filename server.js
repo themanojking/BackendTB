@@ -15,19 +15,30 @@ connectDB();
 
 const app = express();
 
-/* ===================== ✅ CORS FIRST (VERY IMPORTANT) ===================== */
-app.use(cors({
-  origin: ["http://localhost:5173", "https://temple-tb.vercel.app"],
+/* ===================== ✅ CORS CONFIG ===================== */
+const corsOptions = {
+  origin: [
+    "http://localhost:5173",
+    "https://temple-tb.vercel.app",
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-}));
+};
 
-// ✅ Handle preflight
-app.options("*", cors());
+/* ===================== ✅ APPLY CORS FIRST ===================== */
+app.use(cors(corsOptions));
 
-/* ===================== SECURITY ===================== */
-app.use(helmet());
+// ✅ IMPORTANT: use SAME config here
+app.options("*", cors(corsOptions));
+
+/* ===================== ✅ SECURITY ===================== */
+// Fix helmet issue with cross-origin
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 
 /* ===================== BODY ===================== */
 app.use(express.json({ limit: "10mb" }));
@@ -46,10 +57,10 @@ const authLimiter = rateLimit({
   message: { message: "Too many login attempts, please try again later." },
 });
 
-// ✅ Apply AFTER CORS
+// Apply general limiter
 app.use("/api", limiter);
 
-// ✅ Allow OPTIONS to bypass limiter
+// ✅ Allow OPTIONS to bypass auth limiter
 app.use("/api/auth/login", (req, res, next) => {
   if (req.method === "OPTIONS") return next();
   authLimiter(req, res, next);
