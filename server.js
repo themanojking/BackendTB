@@ -10,8 +10,15 @@ import paymentRoutes from "./routes/payment.js";
 
 dotenv.config();
 
+
+
 // Connect DB
-connectDB();
+try {
+  await connectDB();
+  console.log("DB Connected");
+} catch (error) {
+  console.error("DB ERROR:", error.message);
+}
 
 const app = express();
 
