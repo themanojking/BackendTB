@@ -10,63 +10,62 @@ import paymentRoutes from "./routes/payment.js";
 
 dotenv.config();
 
-// Connect to MongoDB
+// Connect DB
 connectDB();
 
 const app = express();
 
-// Security middleware
+/* ===================== ✅ CORS FIRST (VERY IMPORTANT) ===================== */
+app.use(cors({
+  origin: ["http://localhost:5173", "https://temple-tb.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+// ✅ Handle preflight
+app.options("*", cors());
+
+/* ===================== SECURITY ===================== */
 app.use(helmet());
 
-// Rate limiting — 100 requests per 15 minutes
+/* ===================== BODY ===================== */
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+/* ===================== RATE LIMIT ===================== */
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: { message: "Too many requests, please try again later." },
 });
-app.use("/api", limiter);
 
-// Stricter limiter for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: { message: "Too many login attempts, please try again later." },
 });
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
 
-// CORS
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://temple-tb.vercel.app"
-];
+// ✅ Apply AFTER CORS
+app.use("/api", limiter);
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (like Postman)
-      if (!origin) return callback(null, true);
+// ✅ Allow OPTIONS to bypass limiter
+app.use("/api/auth/login", (req, res, next) => {
+  if (req.method === "OPTIONS") return next();
+  authLimiter(req, res, next);
+});
 
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS not allowed: " + origin));
-      }
-    },
-    credentials: true,
-  })
-);
+app.use("/api/auth/register", (req, res, next) => {
+  if (req.method === "OPTIONS") return next();
+  authLimiter(req, res, next);
+});
 
-// Body parser
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-
-// Routes
+/* ===================== ROUTES ===================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payment", paymentRoutes);
 
-// Health check
+/* ===================== HEALTH ===================== */
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
@@ -75,23 +74,22 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// 404 handler
+/* ===================== 404 ===================== */
 app.use("*", (req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-// Global error handler
+/* ===================== ERROR ===================== */
 app.use((err, req, res, next) => {
   console.error("Global error:", err.stack);
   res.status(err.statusCode || 500).json({
     message: err.message || "Internal server error",
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
 
+/* ===================== SERVER ===================== */
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
-  console.log(`\n🏛️  Thanjai Devasthanams Server`);
-  console.log(`🚀  Running on http://localhost:${PORT}`);
-  console.log(`📦  Environment: ${process.env.NODE_ENV || "development"}\n`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
