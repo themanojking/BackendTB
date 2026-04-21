@@ -27,7 +27,10 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: [true, "Phone number is required"],
-      match: [/^\+?[6-9]\d{9}$/, "Please enter a valid Indian phone number"],
+      match: [
+        /^\+?91?[-.\s]?[6-9]\d{9}$/,
+        "Please enter a valid Indian phone number",
+      ],
     },
     role: {
       type: String,
@@ -44,24 +47,38 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Hash password before saving
+// ✅ Hash password before saving
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Compare password method
+// ✅ Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw new Error("Password comparison failed");
+  }
 };
 
-// Remove password from JSON output
+// ✅ Remove sensitive fields from JSON output
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.__v;
   return obj;
+};
+
+// ✅ Static method to find user by email (for login)
+userSchema.statics.findByEmail = async function (email) {
+  return await this.findOne({ email }).select("+password");
 };
 
 const User = mongoose.model("User", userSchema);
