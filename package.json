@@ -5,8 +5,8 @@
   "description": "Backend API for Thanjai Devasthanams Temple Booking",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon api/index.js",
-    "start": "node api/index.js",
+    "dev": "nodemon index.js",
+    "start": "node index.js",
     "lint": "eslint ."
   },
   "dependencies": {
