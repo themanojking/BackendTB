@@ -13,11 +13,7 @@ import paymentRoutes from "./routes/payment.js";
 
 const app = express();
 
-// connect DB
-connectDB();
-
-// middleware
-app.use(cors());
+// ✅ Basic middleware FIRST
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
@@ -27,6 +23,28 @@ app.use(
 app.use(express.json());
 app.use(helmet());
 
+// ✅ DB connection logic
+let isConnected = false;
+
+const ensureDBConnection = async () => {
+  if (!isConnected) {
+    await connectDB();
+    isConnected = true;
+  }
+};
+
+// ✅ Ensure DB before routes
+app.use(async (req, res, next) => {
+  try {
+    await ensureDBConnection();
+    next();
+  } catch (error) {
+    console.error("DB Connection Error:", error);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
+// ✅ Rate limiting
 app.use(
   "/api",
   rateLimit({
@@ -35,12 +53,12 @@ app.use(
   })
 );
 
-// routes
+// ✅ Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payment", paymentRoutes);
 
-// health check
+// ✅ Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK" });
 });
