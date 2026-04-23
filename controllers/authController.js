@@ -10,30 +10,32 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 export const register = async (req, res) => {
   try {
+    console.log("BODY:", req.body);
+    console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
     const { name, email, password, phone } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Missing fields" });
+    }
+
     const existingUser = await User.findOne({ email });
+    console.log("Existing user:", existingUser);
+
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
     const user = await User.create({ name, email, password, phone });
-    const token = generateToken(user._id);
+    console.log("User created:", user);
 
-    res.status(201).json({
-      message: "Account created successfully",
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-      },
-    });
+    const token = generateToken(user._id);
+    console.log("Token created");
+
+    res.status(201).json({ message: "Success", token });
   } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({ message: "Server error during registration" });
+    console.error("🔥 FULL REGISTER ERROR:", error);
+    res.status(500).json({ message: error.message }); // IMPORTANT
   }
 };
 
@@ -95,7 +97,7 @@ export const updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { name, phone },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
     res.json({ message: "Profile updated", user });
   } catch (error) {
